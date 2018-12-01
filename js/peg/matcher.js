@@ -1,5 +1,5 @@
-define(["utils/quote", "types/context", "types/node"],
-function(quote, Context, Node){
+define(["utils/quote", "types/context"],
+function(quote, Context){
 
   var PREC_EXPR = 5
   var PREC_ALT = 10
@@ -17,7 +17,18 @@ function(quote, Context, Node){
 
 		match(ctx){ return ctx.fail() }
 
-		static from(v){
+		static from(...args){
+      var v
+      if(args.length === 1){
+        v = args[0]
+
+      } else if(args.length){
+        v = [...args]
+
+      } else {
+        v = null
+      }
+      
 			if(v instanceof Matcher) return v
 			if(v instanceof Array) {
 				if(v.length === 1) return Matcher.from(v[0])
@@ -41,7 +52,13 @@ function(quote, Context, Node){
 			}
 			return Matcher.from(result)
 		}
+
+    toString(){
+      if(this.display) return this.display()
+      return super.toString()
+    }
 	}
+
 
   function parenthize(what, outerprec, innerprec){
     outerprec = ~~outerprec
@@ -51,6 +68,8 @@ function(quote, Context, Node){
       : what
 
   }
+
+
   class Lit extends Matcher{
 		constructor(value){
 			super()

@@ -1,5 +1,18 @@
-define(["types/track", "types/iterator", "types/node"],
-function(Track, Iterator, Node){
+define(["types/track", "types/iterator"],
+function(Track, Iterator){
+
+	class Result {
+		constructor(rule, start, end){
+			this.rule = rule
+			this.children = []
+			this.start = start || 0
+			this.end = end
+		}
+
+		static create(rule, start, end){
+			return new Result(rule, start, end)
+		}
+	}
 
 	class Context extends Iterator{
 
@@ -8,7 +21,7 @@ function(Track, Iterator, Node){
 			if(other instanceof Context){
 				this.assign(other)
 			} else {
-				this._vars = {_result: new Track({start:0, children:[]})}
+				this._vars = {_result: new Track(new Result(null, 0))}
 			}
 		}
 
@@ -58,13 +71,15 @@ function(Track, Iterator, Node){
 		}
 
 		push(value){
+			if(value && !(value instanceof Result)) throw new Error("Invalid result value: " + value)
 			this.result.push(value)
 			return this
 		}
 
-		swap(v){
+		swap(value){
+			if(value && !(value instanceof Result)) throw new Error("Invalid result value: " + value)
 			var ret = this.pop()
-			this.push(v)
+			this.push(value)
 			return ret
 		}
 
@@ -74,13 +89,27 @@ function(Track, Iterator, Node){
 			return ret
 		}
 
-		pushRule(value){
-			this.push({rule:rule, start:this.position, children:[]})
-			return this
+		pushRule(rule){
+			var ret = new Result(rule, this.position)
+			this.push(ret)
+			return ret
 		}
 
 		get children(){
 			return this.peek().children
+		}
+
+		get firstChild(){
+			return this.children[0]
+		}
+
+		get lastChild(){
+			var v = this.children
+			return v[v.length-1]
+		}
+
+		addChild(v){
+			this.children.push(v)
 		}
 
 		popAsChild(ok){
@@ -139,6 +168,9 @@ function(Track, Iterator, Node){
 
 	}
 
+	Context.types = {
+		Result: Result
+	}
 
 	return Context
 

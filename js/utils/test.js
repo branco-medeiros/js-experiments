@@ -242,5 +242,21 @@ define([], function(){
 		return self;
 	}
 
+	Test.testAll = function(src){
+		src = src || this
+		for(var k in src){
+			if(k !== "testAll" && /^test.+/.test(k)) try{
+				src[k]()
+			} catch(ex){
+				console.log(ex)
+			}
+		}
+	}
+
+	Test.asTest = function(src){
+		src.testAll = Test.testAll.bind(src)
+		return src
+	}
+
 	return Test
 })

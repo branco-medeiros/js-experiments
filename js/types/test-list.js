@@ -54,11 +54,11 @@ function(test, List, Iterator, EnumList, Context){
     })
   }
 
-  return {
+  return test.asTest({
     testListWithArray: testListWithArray,
     testListWithList: testListWithList,
     testIterator: testIterator,
     testEnumList: testEnumList,
     testContext: testContext
-  }
+  })
 })

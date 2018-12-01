@@ -1,13 +1,11 @@
 define([
   "parsers/source-tokenizer", "parsers/source-parser",
   "parsers/expr-tokenizer",
-  "gll/rule",
-  "peg/test-peg", "types/test-context", "types/test-list",
-  "peg/test-memo-rule"
+  "peg/test-peg", "types/test-context", "types/test-list"
 ],
-function(SourceTokenizer, SourceParser, ExprTokenizer,
-  gllRule,
-  testPeg, testContext, testList, testMemo
+function(
+  SourceTokenizer, SourceParser, ExprTokenizer,
+  testPeg, testContext, testList
 ){
 
   function vm(){
@@ -75,10 +73,6 @@ function(SourceTokenizer, SourceParser, ExprTokenizer,
 
     self.testContext = function(){
       test(testContext)
-    }
-
-    self.testMemo = function(){
-      test(testMemo)
     }
 
     function test(what){

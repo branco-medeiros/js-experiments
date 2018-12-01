@@ -1,1 +1,3 @@
-# js-experiments
+# js-experiments #
+
+Experiments in JS

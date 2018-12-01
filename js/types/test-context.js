@@ -54,14 +54,31 @@ function(Context, test){
 	}
 
 
-	var result = {
+	function testContextToString(){
+			test("Context -- toStrng", function(chk, msg){
+				var ctx = chk("var ctx = ctx.from('abcdefg1234')", Context.from("abcdefg1234")).isValid()
+				chk("when position is 0, ctx.toString()", ctx.toString()).is("[a]bcdefg1234")
+
+				ctx.position = 5
+				chk("when position is 5, ctx.toString()", ctx.toString()).is("abcde[f]g1234")
+
+				ctx.position = 10
+				chk("when position is 10, ctx.toString()", ctx.toString()).is("abcdefg123[4]")
+
+				ctx.position = -1
+				chk("when position is -1, ctx.toString()", ctx.toString()).is("[]abcdefg1234")
+
+				ctx.position = 11
+				chk("when position is 11, ctx.toString()", ctx.toString()).is("abcdefg1234[]")
+
+
+			})
+	}
+
+
+	return test.asTest({
 		testContextIteration: testContextIteration,
 		testContextClone: testContextClone,
-		testAll: function(){
-			for(var t in result){
-				if(t !== "testAll") result[t]()
-			}
-		}
-	}
-	return result
+		testContextToString: testContextToString
+	})
 })

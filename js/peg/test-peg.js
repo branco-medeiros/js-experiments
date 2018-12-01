@@ -221,27 +221,85 @@ function(test, peg, context, cc){
 
   } //testCapture
 
-  testGrammar(){
+  function testGrammar(){
     test("PEG -- grammar", function(chk, msg){
-      var g = chk("var g = peg.grammar()", peg.grammar()).isValid()
-      var token = chk("var token = g('token')", g('token')).isValid()
+      var g = chk("var g = peg.grammar()", () => peg.grammar()).isValid()
+      var token = chk(
+        "var token = g('token').assign(g('ident'), g('number'), g('string'))",
+        g('token').assign(g("ident"), g("number"), g("string"))
+      ).isValid()
       chk("token.isRule === true", token.isRule).isTrue()
       chk("g.startRule === token", g.startRule === token).isTrue()
       chk(
-        'token.assign(g("ident"), g("number"), g("string"))',
-        token.assign(g("ident"), g("number"), g("string"))
-      ).isValid()
-      chk(
         "[g.contains('ident'), g.contains('string'), g.contains('number'), g.contains('token')]",
         [g.contains('ident'), g.contains('string'), g.contains('number'), g.contains('token')]
-      )
-
+      ).allSucceed()
+      chk("g() === token", g() === token).isTrue()
     })
 
   }
 
+  function testRule(){
+    test("PEG -- rule", function(chk, msg){
 
-  var result = {
+      var g = peg.grammar()
+      var test = g("test")
+      var options = {noLineBreaks: true}
+
+      msg("Using rule 'test'...")
+      chk(
+        "test.assign(cc.letter).body.length",
+        test.assign(cc.letter).body.length
+      ).is(1)
+
+      chk("test.fullDisplay()", test.fullDisplay(options)).is("test = <letter>")
+
+      chk(
+        "test.assign(cc.letter, cc.digit, cc.control).body.length",
+        test.assign(cc.letter, cc.digit, cc.control).body.length
+      ).is(3)
+
+      chk(
+        "test.fullDisplay()", test.fullDisplay(options)
+      ).is("test = <letter> | <digit> | <control>")
+
+      chk(
+        "test.assign([cc.letter, cc.digit, cc.control]).body.length",
+        test.assign([cc.letter, cc.digit, cc.control]).body.length
+      ).is(1)
+
+      chk(
+        "test.fullDisplay()", test.fullDisplay(options)
+      ).is("test = <letter> <digit> <control>")
+
+
+      var ident = g("ident").assign(peg.seq(
+          peg.alt(cc.letter, "_"),
+          peg.star(
+            peg.alt(
+              peg.plus(cc.alphanum),
+              [peg.alt(".", "_", "-"), peg.plus(cc.alphanum)]
+            )
+          )
+        ))
+      msg("Using the 'ident' rule bellow:")
+      msg(ident.fullDisplay())
+
+      var ctx = context.from("abc.1234-x_y_z")
+      var ret = chk(`ret = ident.match(${ctx})`, ident.match(ctx)).isValid()
+      chk("...and ret.finished", ret.finished).isTrue()
+      chk(
+        "...and ret.lastChild.rule === ident",
+        ret.lastChild.rule === ident
+      ).isTrue()
+
+      window.retVal = ret
+
+
+    })
+  }
+
+  return test.asTest({
     testLit: testLit,
     testSeq: testSeq,
     testAlt: testAlt,
@@ -249,12 +307,7 @@ function(test, peg, context, cc){
     testPlus: testPlus,
     testStar: testStar,
     testCapture: testCapture,
-    testAll: function(){
-      for(var k in result){
-        if(k !== "testAll") result[k]()
-      }
-    }
-  }
-
-  return result
+    testGrammar: testGrammar,
+    testRule: testRule
+  })
 })
