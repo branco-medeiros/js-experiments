@@ -4,9 +4,43 @@ function(Track, Iterator){
 	class Result {
 		constructor(rule, start, end){
 			this.rule = rule
-			this.children = []
+			this.values = []
 			this.start = start || 0
 			this.end = end
+			this.isResult = true
+		}
+
+		get first(){
+			return this.values[0]
+		}
+
+		get last(){
+			return this.values[this.values.length-1]
+		}
+
+		at(index){
+			return this.values[index]
+		}
+
+		get count(){
+			return this.values.length
+		}
+
+		display(ilevel){
+			ilevel = ~~ilevel
+			var spc = ilevel? "\r\n ": " "
+
+			var content = this.values.map((v) => v.display((ilevel || 1) - 1)).join(spc)
+			return "(" +
+				((this.rule && this.rule.name) || "N/R") +
+				(this.start == null? ""
+					:(" " + this.start + ":" + (this.end == null? "?": this.end))
+				) +
+				(content == null || !content.length? "" : (spc + content)) +
+			")"
+		}
+		toString(){
+			return this.display()
 		}
 
 		static create(rule, start, end){
@@ -21,7 +55,9 @@ function(Track, Iterator){
 			if(other instanceof Context){
 				this.assign(other)
 			} else {
-				this._vars = {_result: new Track(new Result(null, 0))}
+				this._vars = {}
+				this._result = new Track(new Result(null, 0))
+				this._memo = []
 			}
 		}
 
@@ -58,63 +94,96 @@ function(Track, Iterator){
 			return this._vars
 		}
 
+		////////////////////////////////////////////////////////////////////////////
+		//// result
+
 		get result(){
-			return this._vars._result;
+			return this._result;
 		}
 
-		peek(){
-			return this.result.peek()
+		peekResult(){
+			return this._result.peek()
 		}
 
-		pop(){
-			return this.result.pop()
+		popResult(){
+			return this._result.pop()
 		}
 
-		push(value){
-			if(value && !(value instanceof Result)) throw new Error("Invalid result value: " + value)
-			this.result.push(value)
+		pushResult(value){
+			if(!(value && value.isResult)) throw new Error("Invalid result value: " + value)
+			this._result.push(value)
 			return this
 		}
 
-		swap(value){
-			if(value && !(value instanceof Result)) throw new Error("Invalid result value: " + value)
-			var ret = this.pop()
-			this.push(value)
-			return ret
+		swapResult(value){
+			if(!(value && value.isResult)) throw new Error("Invalid result value: " + value)
+			var result = this._result
+			result.pop()
+			result.push(value)
+			return this
 		}
 
-		swapRule(value){
-		  var ret = this.pop()
-			this.pushRule(value)
-			return ret
+		swapRuleResult(value){
+		  var ret = this.popResult()
+			return this.pushRuleResult(value)
 		}
 
-		pushRule(rule){
+		pushRuleResult(rule){
 			var ret = new Result(rule, this.position)
-			this.push(ret)
+			this.pushResult(ret)
 			return ret
 		}
 
-		get children(){
-			return this.peek().children
+		get resultValues(){
+			return this.peekResult().values
 		}
 
-		get firstChild(){
-			return this.children[0]
+		get resultFirst(){
+			return this.peekResult().first
 		}
 
-		get lastChild(){
-			var v = this.children
-			return v[v.length-1]
+		get resultLast(){
+			return this.peekResult().last
 		}
 
-		addChild(v){
-			this.children.push(v)
+		addResultValue(v){
+			this.resultValues.push(v)
 		}
 
-		popAsChild(ok){
-			var v = this.pop()
-			if(ok) this.children.push(v)
+		popResultAsValue(ok){
+			var v = this.popResult()
+			if(ok) this.resultValues.push(v)
+		}
+
+		////////////////////////////////////////////////////////////////////////////
+		//// memo
+		getMemo(index, name){
+			var dict = this._memo[index]
+			return dict && dict[name]
+		}
+
+		setMemo(index, name, value){
+			var memo = this._memo
+			var dict = memo[index]
+			if(!dict) memo[index] = dict = {}
+			dict[name] = value
+			return this
+		}
+
+		////////////////////////////////////////////////////////////////////////////
+		//// vars...
+
+		get vars(){
+			return this._vars
+		}
+
+		getVar(id){
+			return this._vars[id]
+		}
+
+		setVar(id, value){
+			this._vars[id] = value
+			return this
 		}
 
 		////////////////////////////////////////////////////////////////////////////
@@ -124,7 +193,9 @@ function(Track, Iterator){
 			if(other instanceof Context){
 				super.assign(other)
 				this.failed = other.failed
-				this._vars = other.globals
+				this._result = other._result
+				this._vars = other._vars
+				this._memo = other._memo
 			}
 			return this
 		}

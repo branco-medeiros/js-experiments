@@ -1,5 +1,5 @@
-define(["utils/quote", "types/context"],
-function(quote, Context){
+define(["utils/quote", "types/context", "utils/parenthise"],
+function(quote, Context, parenthize){
 
   var PREC_EXPR = 5
   var PREC_ALT = 10
@@ -14,6 +14,9 @@ function(quote, Context){
 		//which will try to match the supplied Context with the matcher content;
 		//returns ctx.succeed() on success (which may or may not increment the current position)
 		//returns ctx.failed on error
+    constructor(){
+      this.isMatcher = true
+    }
 
 		match(ctx){ return ctx.fail() }
 
@@ -28,7 +31,7 @@ function(quote, Context){
       } else {
         v = null
       }
-      
+
 			if(v instanceof Matcher) return v
 			if(v instanceof Array) {
 				if(v.length === 1) return Matcher.from(v[0])
@@ -57,18 +60,7 @@ function(quote, Context){
       if(this.display) return this.display()
       return super.toString()
     }
-	}
-
-
-  function parenthize(what, outerprec, innerprec){
-    outerprec = ~~outerprec
-    innerprec = ~~innerprec
-    return (outerprec > 0 && innerprec <= outerprec)
-      ? "(" + what + ")"
-      : what
-
-  }
-
+	} //Matcher
 
   class Lit extends Matcher{
 		constructor(value){
@@ -155,7 +147,6 @@ function(quote, Context){
 		}
 	}
 
-
 	class Seq extends ListMatcher {
 		constructor(list){
 			super(list)
@@ -178,7 +169,6 @@ function(quote, Context){
 			return parenthize(temp.join(" "), prec, iprec)
 		}
 	}
-
 
 	class ValueMatcher extends Matcher {
 		constructor(value){
@@ -240,7 +230,6 @@ function(quote, Context){
 		}
 	}
 
-
 	class OneOf extends Matcher {
 		constructor(value){
 			super()
@@ -284,7 +273,6 @@ function(quote, Context){
 			return parenthize("%is " + this.value.display(iprec), prec, iprec)
 		}
 	}
-
 
 	class IsNot extends ValueMatcher {
 		constructor(value){
@@ -341,7 +329,6 @@ function(quote, Context){
 			}
 	}
 
-
 	class Any extends Matcher{
     constructor(){
       super()
@@ -382,16 +369,14 @@ function(quote, Context){
 		}
 
 		match(ctx, ...args){
-			return this.fn(ctx, ...args) === false
-				? ctx.fail()
-				: ctx
+			this.fn(ctx, ...args)
+      return ctx
 		}
 
 		display(){
 			return "%fn(" + ((this.fn && this.fn.name) || "...") + ")"
 		}
 	}
-
 
   class Warning extends Matcher{
     constructor(msg){
@@ -466,7 +451,6 @@ function(quote, Context){
       return `%pcall(${this.rule.display()}, ${this.prec})`
     }
   }
-
 
   Matcher.Lit = Lit
   Matcher.ListMatcher = ListMatcher

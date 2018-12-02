@@ -6,6 +6,10 @@ function(Matcher){
   function noop(){}
   var emptyList = []
 
+  function dispatch(fn, ...args){
+    if(fn && fn instanceof Function) fn(...args)
+  }
+
 	class Rule extends Matcher.ListMatcher{
 
 		constructor(name, body){
@@ -30,128 +34,89 @@ function(Matcher){
             : [Matcher.from(value)]))
     }
 
-    match_test00(ctx, ...args){
-      var result = ctx.pushRule(this)
-      var fail, ok = false, ret = ctx
-      for(var m of this.list){
-        ret = m.match(ctx.clone(), ...args)
-        if(!ret.failed){
-          ok = true
-          break
-        }
-        fail = (fail && fail.position < ret.position) || ret
-      }
-      ctx = ok? ret : (fail || ctx.fail())
-      result.end = ctx.position
-      ctx.popAsChild(ok)
-      return ctx
-    }
 
-		match_test01(ctx, prec, ...args){
-      var pos = ctx.position
-      var r = ctx.result.find((v) => v.rule === this && v.position === pos)
-      if(r){
-        if(!r.recursing){
-          r.recursed = true
-          return ctx.fail()
-        }
-
-        ctx.children.push(r.lastValue)
-        ctx.position = r.lastValue.end
+    match(ctx, ...args){
+      var memo = ctx.getMemo(ctx.position, this.name)
+      if(memo) {
+        //if there's already a valid result for this rule in
+        //the memo position, returns it
+        ctx.addResultValue(memo)
+        ctx.position = memo.end
         return ctx
       }
-      var result = ctx.pushRule(this)
-      var fail, alts = [], ok = false, ret = ctx
-      for(var m of this.list){
-        result.recursed = false
-        ret = m.match(ctx.clone(), ...args)
-        if(!ret.failed){
-          ok = true
-          break
-        }
-        if(result.recursed) alts.push(m)
-        fail = (fail && fail.position < ret.position) || ret
-      }
-      ctx = ok? ret : (fail || ctx.fail())
-      result.position = ctx.position
-      if(ok && alts.length){
-        while(!ret.failed){
-          ctx = ret
-          ctx.position = result.start
-          for(var m of alts){
-            var cur = ctx.swapRule(this)
-            cur.recursing = true
-            cur.lastValue = result
-            ret = m.match(ctx.clone(), ...args)
-            if(!ret.failed){
-              result = cur
-              result.end = ret.position
-              break
-            }
-          }
-        }
-        ctx.swap(result)
-      }
-      ctx.popAsChild(ok)
-      return ctx
-		}
 
-    match(ctx, prec, ...args){
-      if(prec && prec.rule === this){
-        //prec is actually the parameter
-        //for this rule
-        ctx.children.push(prec)
-        ctx.position = prec.end
-        return ctx
+      var prec = args[0]
+      if(prec != null && prec.constructor === Number) {
+        //if a precedence was supplied, removes it from
+        //the parameter list
+        args = args.split(1)
+      } else {
+        prec = 0
       }
-      prec = ~~prec
 
       //initializes the result
-      var result = ctx.pushRule(this)
-      var fail, ok = false, ret = ctx
-      //tests each alt (excpet those marked with a precedence value)
+      var result = ctx.pushRuleResult(this)
+      this.onEnter(ctx)
+
+      var fail, matched, ret
       for(var m of this.list){
+        //tests each alt except those marked with a precedence value
+        //which are supposed to be left recursive
         if(m.prec) continue
         ret = m.match(ctx.clone(), ...args)
         if(!ret.failed){
-          ok = true
+          matched = true
+          result.matcher = m
           break
         }
-        //records the longes failed match in case everything fails and
+        //records the longest failed match in case everything fails and
         //we want a trace
         fail = (fail && fail.position < ret.position) || ret
       }
-      ctx = ok? ret : (fail || ctx.fail())
-      result.end = ctx.position
-      var matching = ok
 
-      while(matching){
-        //assumes that the rule has (eventually left recursive) alternatives
-        //which will be processed after the initial match
+      if(matched){
         ctx = ret
-        ctx.position = result.start
-        matching = false
-        for(var m of this.list){
-          //processes only items with a precedence greater
-          //than the current one (which will be 0, if none supplied)
-          if(!m.prec  || m.prec < prec) continue
+        result.end = ctx.position
+        ctx.setMemo(result.start, this.name, result)
+        while(matched){
+          //assumes that the rule has (eventually left recursive) alternatives
+          //which will be processed after the initial match;
+          //these alternatives are marked with a precedence level greater than 1
+          //and will only be considered if this precendence is greater than
+          //the current precedence
 
-          //recates a rule context for the matching rule
-          var cur = ctx.swapRule(this)
-          ret = m.match(ctx.clone(), result, ...args)
-          if(!ret.failed){
-            matching = true
-            result = cur
-            result.end = ret.position
-            break
+          //rewinds the position to the start of the match
+          ctx.position = result.start
+          matched = false
+          var cur = ctx.swapRuleResult(this)
+          for(var m of this.list){
+            if(!m.prec  || m.prec < prec) continue
+            ret = m.match(ctx.clone(), ...args)
+            if(!ret.failed){
+              matched = true
+              cur.matcher = m
+              break;
+            }
+          }
+          if(matched) {
+            ctx = ret
+            result = cur;
+            result.end = ctx.position
+            ctx.setMemo(result.start, this.name, result)
+          } else {
+            ctx.position = result.end
+            ctx.swapResult(result)
           }
         }
-        //restores the original result if
-        //the match failed; otherwise, does nothing
-        ctx.swap(result)
-        ctx.position = result.end
+        this.onMatch(ctx)
+        this.onLeave(ctx)
+        ctx.popResultAsValue(true)
+
+      } else {
+        ctx = fail || ctx.fail()
+        this.onLeave(ctx)
+        ctx.popResult()
       }
-      ctx.popAsChild(ok)
       return ctx
 		}
 
@@ -165,7 +130,20 @@ function(Matcher){
 		}
 
     get valid(){
-      return !!this.list.length
+      var bad = this.list.find((v) => !(v && v.isMatcher))
+      return this.list.length && !bad
+    }
+
+    onEnter(ctx){
+      dispatch(ctx.getVar("enter"), ctx)
+    }
+
+    onLeave(ctx){
+      dispatch(ctx.getVar("leave"), ctx)
+    }
+
+    onMatch(ctx){
+      dispatch(ctx.getVar("match"), ctx)
     }
 
 		display(){
