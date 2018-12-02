@@ -273,15 +273,15 @@ function(test, peg, context, cc){
       ).is("test = <letter> <digit> <control>")
 
 
-      var ident = g("ident").assign(peg.seq(
-          peg.alt(cc.letter, "_"),
+      var ident = g("ident").assign([
+          cc.letter,
           peg.star(
             peg.alt(
               peg.plus(cc.alphanum),
               [peg.alt(".", "_", "-"), peg.plus(cc.alphanum)]
             )
           )
-        ))
+        ])
       msg("Using the 'ident' rule bellow:")
       msg(ident.fullDisplay())
 
@@ -293,8 +293,32 @@ function(test, peg, context, cc){
         ret.lastChild.rule === ident
       ).isTrue()
 
-      window.retVal = ret
 
+      var identFirst = g("ident-first").assign(cc.letter)
+      var identSimple = g("ident-simple").assign(peg.plus(cc.alphanum))
+      var identSep = g("ident-sep").assign([peg.alt(".", "_", "-"), peg.plus(cc.alphanum)])
+      var ident2 = g("ident2").assign([identFirst, peg.star(peg.alt(identSimple, identSep))])
+      ctx = context.from("abc.1234-x_y_z")
+      msg("For the following grammar:")
+      msg(ident2.fullDisplay(options))
+      msg(identFirst.fullDisplay(options))
+      msg(identSimple.fullDisplay(options))
+      msg(identSep.fullDisplay(options))
+
+      ret = chk(`ret = ident2.match(${ctx})`, ident2.match(ctx)).isValid()
+      chk("...and ret.finished", ret.finished).isTrue()
+      chk("...and ret.lastChild.rule === ident2", ret.lastChild.rule === ident2).isTrue()
+      var result = ret.lastChild.children.map((v) => v.rule.name).join(" ")
+      chk("...and ret.lastChild.children", result).is("ident-first ident-simple ident-sep ident-sep ident-sep ident-sep")
+
+      var expr = g("expr").assign([g("expr"), "+", "n"], "n")
+      expr.body[0].prec = 10
+      ctx= context.from("n+n+n")
+      msg("For the 'expr' rule bellow:")
+      msg(expr.fullDisplay(options))
+      ret = chk(`expr.match(${ctx})`, expr.match(ctx)).isValid()
+
+      window.retVal = ret
 
     })
   }
