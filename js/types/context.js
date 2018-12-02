@@ -26,17 +26,18 @@ function(Track, Iterator){
 			return this.values.length
 		}
 
-		display(ilevel){
-			ilevel = ~~ilevel
-			var spc = ilevel? "\r\n ": " "
+		display(options, ilevel){
 
-			var content = this.values.map((v) => v.display((ilevel || 1) - 1)).join(spc)
+			options = options || {}
+			ilevel = ~~ilevel
+			var content = this.values.map((v) => v.display(options, ilevel + 1)).join(" ")
 			return "(" +
+				(options.showILevel? ilevel + ":" : "") +
 				((this.rule && this.rule.name) || "N/R") +
 				(this.start == null? ""
 					:(" " + this.start + ":" + (this.end == null? "?": this.end))
 				) +
-				(content == null || !content.length? "" : (spc + content)) +
+				(content == null || !content.length? "" : (" " + content)) +
 			")"
 		}
 		toString(){

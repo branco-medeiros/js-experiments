@@ -84,21 +84,24 @@ function(test, cc, peg, context){
       ctx = context.from("abc.1234-x_y_z")
 
       //////////////////////////////////////////////////////////////////////////
+      function breakLevels(v) {
+        return v.replace(/\(([0-2]):/g, "\r\n($1:")
+      }
       ret = chk(`ret = ident.match(${ctx})`, ident.match(ctx)).isValid()
       chk("...and ret.finished", ret.finished).isTrue()
-      chk("...and ret.peekResult()", "\r\n" + ret.peekResult().display(2))
-      .is(
-        "\r\n" +
-        "(N/R 0:?\r\n" +
-        " (ident 0:14\r\n" +
-        " (ident-first 0:1)\r\n" +
-        " (ident-text 1:3)\r\n" +
-        " (ident-sep 3:8 (ident-text 4:8))\r\n" +
-        " (ident-sep 8:10 (ident-text 9:10))\r\n" +
-        " (ident-sep 10:12 (ident-text 11:12))\r\n" +
-        " (ident-sep 12:14 (ident-text 13:14))" +
-        "))"
-      )
+      chk(
+        "...and ret.peekResult()",
+        breakLevels(ret.peekResult().display({showILevel:true}))
+      ).is(breakLevels(
+        "(0:N/R 0:? " +
+        "(1:ident 0:14 " +
+        "(2:ident-first 0:1) " +
+        "(2:ident-text 1:3) " +
+        "(2:ident-sep 3:8 (3:ident-text 4:8)) " +
+        "(2:ident-sep 8:10 (3:ident-text 9:10)) " +
+        "(2:ident-sep 10:12 (3:ident-text 11:12)) " +
+        "(2:ident-sep 12:14 (3:ident-text 13:14))))"
+      ))
 
     })
   } //testSubRuleMatch
