@@ -49,7 +49,7 @@ function(Matcher){
       if(prec != null && prec.constructor === Number) {
         //if a precedence was supplied, removes it from
         //the parameter list
-        args = args.split(1)
+        args = args.slice(1)
       } else {
         prec = 0
       }
@@ -90,7 +90,7 @@ function(Matcher){
           matched = false
           var cur = ctx.swapRuleResult(this)
           for(var m of this.list){
-            if(!m.prec  || m.prec < prec) continue
+            if(!m.prec  || m.prec <= prec) continue
             ret = m.match(ctx.clone(), ...args)
             if(!ret.failed){
               matched = true
@@ -156,13 +156,17 @@ function(Matcher){
       var result
       var cr = options.noLineBreaks? "" : "\r\n"
 
+      function displayAlt(v, prec){
+          return (v.prec? (`%prec(${~~v.prec}) `) : "") + v.display(prec)
+      }
+
       if(!this.list.length)  return temp + "<N/A>" + cr
-      if(this.list.length === 1) return temp + this.list[0].display() + cr;
+      if(this.list.length === 1) return temp + displayAlt(this.list[0]) + cr;
 
       var spc = (options.noSpaces || options.noLineBreaks)? "" : Array(temp.length - 1).join(" ")
 			var sep = cr + spc + " | "
 
-      return temp + this.list.map((v) => v.display(PREC_ALT)).join(sep) + cr
+      return temp + this.list.map((v) => displayAlt(v, PREC_ALT)).join(sep) + cr
 		}
 
 		static create(name, value){

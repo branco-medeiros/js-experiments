@@ -106,8 +106,8 @@ function(test, cc, peg, context){
     })
   } //testSubRuleMatch
 
-  function testDirectLeftRecursiveMatch(){
-    test("RULE -- direct left recursive match", function(chk, msg){
+  function testDirectLeftRecursion(){
+    test("RULE -- direct left recursion", function(chk, msg){
 
       var g = peg.grammar()
       var options = {noLineBreaks: true}
@@ -124,18 +124,62 @@ function(test, cc, peg, context){
       chk("...and ret.finished", ret.finished).isTrue()
       chk("...and ret.peekResult()", ret.peekResult().toString())
       .is("(N/R 0:? (expr 0:5 (expr 0:3 (expr 0:1))))")
-
-      window.retVal = ret
-
     })
-  } //testDirectLeftRecursiveMatch
+  } //testDirectLeftRecursion
+
+
+  function testIndirectLeftRecursion(){
+    test("RULE -- indirect left recursion", function(chk, msg){
+
+      var g = peg.grammar()
+      var options = {noLineBreaks: true}
+      var expr = g("expr").assign(g("add"), g("sub"), g("expr2"))
+      var expr2 = g("expr2").assign(g("mul"), g("div"), g("expr3"))
+      var expr3 = g("expr3").assign(g("num"), g("grp"))
+      expr.body[0].prec = 10
+      expr.body[1].prec = 10
+      expr2.body[0].prec = 20
+      expr2.body[1].prec = 20
+
+      _ = g("_").assign(peg.star(" "))
+
+      function fn(v){
+        return peg.fn(
+          function(){
+            msg(v)
+          }
+        )
+      }
+      g("add").assign([fn("add"), expr, "+", _, expr2])
+      g("sub").assign([fn("sub"), expr, "-", _, expr2])
+      g("mul").assign([fn("mul"), expr2, "*", _, expr3])
+      g("div").assign([fn("div"), expr2, "/", _, expr3])
+      g("num").assign([fn("num"), peg.plus(cc.digit), _])
+      g("grp").assign([fn("grp"), "(", _, g("expr"), ")", _])
+
+      msg("For the following grammar:")
+      msg(g.display(options))
+
+      ctx= context.from("1 + 2 * 3 * (5 - 4) / 6")
+      msg("...and the following input:")
+      msg(ctx)
+
+
+      window.memo = ctx.memo
+      window.result = ctx.result
+
+      //////////////////////////////////////////////////////////////////////////
+      ret = chk(`ret = expr.match(${ctx})`, expr.match(ctx)).isValid()
+    })
+  } //testDirectLeftRecursion
 
 
   return test.asTest({
     testRuleDisplay: testRuleDisplay,
     testSimpleMatch: testSimpleMatch,
     testSubRuleMatch: testSubRuleMatch,
-    testDirectLeftRecursiveMatch: testDirectLeftRecursiveMatch
+    testDirectLeftRecursion: testDirectLeftRecursion,
+    testIndirectLeftRecursion: testIndirectLeftRecursion
   })
 
 })

@@ -30,10 +30,10 @@ define([], function(){
 			return rule
 		}
 
-		display(){
+		display(options){
       var start = self.startRule;
 			return this.rules.map(function(r){
-        return (r === start? "%start " : "") + r.fullDisplay()
+        return (r === start? "%start " : "") + r.fullDisplay(options)
       }).join("\r\n")
 		}
 

@@ -448,7 +448,7 @@ function(quote, Context, parenthize){
     }
 
     display(){
-      return `%pcall(${this.rule.display()}, ${this.prec})`
+      return `%pcall(${this.value.display()}, ${this.prec})`
     }
   }
 

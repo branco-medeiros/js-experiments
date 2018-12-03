@@ -111,6 +111,10 @@ function(Track, Iterator, Result){
 
 		////////////////////////////////////////////////////////////////////////////
 		//// memo
+		get memo(){
+			return this._memo
+		}
+		
 		getMemo(index, name){
 			var dict = this._memo[index]
 			return dict && dict[name]
