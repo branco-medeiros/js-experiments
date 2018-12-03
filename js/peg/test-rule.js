@@ -1,6 +1,10 @@
 define(["utils/test", "utils/char-class", "./peg", "types/context"],
 function(test, cc, peg, context){
 
+  function breakLevels(v) {
+    return v.replace(/\(([0-2]):/g, "\r\n($1:")
+  }
+
   function testRuleDisplay(){
     test("RULE  -- display", function(chk, msg){
 
@@ -84,9 +88,6 @@ function(test, cc, peg, context){
       ctx = context.from("abc.1234-x_y_z")
 
       //////////////////////////////////////////////////////////////////////////
-      function breakLevels(v) {
-        return v.replace(/\(([0-2]):/g, "\r\n($1:")
-      }
       ret = chk(`ret = ident.match(${ctx})`, ident.match(ctx)).isValid()
       chk("...and ret.finished", ret.finished).isTrue()
       chk(
@@ -119,6 +120,8 @@ function(test, cc, peg, context){
 
       ctx= context.from("n+n+n")
 
+      window.result = ctx.result
+
       //////////////////////////////////////////////////////////////////////////
       ret = chk(`ret = expr.match(${ctx})`, expr.match(ctx)).isValid()
       chk("...and ret.finished", ret.finished).isTrue()
@@ -130,6 +133,57 @@ function(test, cc, peg, context){
 
   function testIndirectLeftRecursion(){
     test("RULE -- indirect left recursion", function(chk, msg){
+
+      var g = peg.grammar()
+      var options = {noLineBreaks: true}
+      var expr = g("expr")
+      var add = g("add")
+      var num = g("num")
+      add.assign([fn("add"), expr, "+", num])
+      num.assign([fn("num"), peg.plus(cc.digit)])
+      expr.assign(add, num)
+      expr.body[0].prec = 10
+
+
+      function fn(v){
+        return peg.fn(
+          function(){
+            msg(v)
+          }
+        )
+      }
+
+      msg("For the following grammar:")
+      msg(g.display(options))
+
+      ctx= context.from("1+2+3")
+      msg("...and the following input:")
+      msg(ctx)
+
+
+      window.memo = ctx.memo
+      window.result = ctx.result
+
+      //////////////////////////////////////////////////////////////////////////
+      ret = chk(`ret = expr.match(${ctx})`, expr.match(ctx)).isValid()
+      chk("ret.peekResult()", ret.peekResult().display({showILevel:true}))
+      .is(
+        "(0:N/R 0:? " +
+        "(1:expr 0:5 " +
+        "(2:add 0:5 " +
+        "(3:expr 0:3 " +
+        "(4:add 0:3 " +
+        "(5:expr 0:1 " +
+        "(6:num 0:1)) " +
+        "(5:num 2:3))) " +
+        "(3:num 4:5))))"
+      )
+
+    })
+  } //testDirectLeftRecursion
+
+  function testIndirectLeftRecursionSubRules(){
+    test("RULE -- indirect left recursion -- with sub rules", function(chk, msg){
 
       var g = peg.grammar()
       var options = {noLineBreaks: true}
@@ -173,13 +227,13 @@ function(test, cc, peg, context){
     })
   } //testDirectLeftRecursion
 
-
   return test.asTest({
     testRuleDisplay: testRuleDisplay,
     testSimpleMatch: testSimpleMatch,
     testSubRuleMatch: testSubRuleMatch,
     testDirectLeftRecursion: testDirectLeftRecursion,
-    testIndirectLeftRecursion: testIndirectLeftRecursion
+    testIndirectLeftRecursion: testIndirectLeftRecursion,
+    testIndirectLeftRecursionSubRules: testIndirectLeftRecursionSubRules
   })
 
 })
