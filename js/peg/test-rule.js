@@ -227,13 +227,40 @@ function(test, cc, peg, context){
     })
   } //testDirectLeftRecursion
 
+
+  function testMutualLeftRecursion(){
+    test("RULE -- mutually left recursive rule", function(chk, msg){
+      var g = peg.grammar();
+      var sel = g("sel")
+      var pref = g("pref")
+      var id = g("id")
+      var num = g("num")
+      sel.assign([pref, ".", id], id)
+      sel.body[0].prec = 10
+
+      pref.assign([pref, "(", num, ")"], sel)
+      pref.body[0].prec = 10
+
+      id.assign(peg.plus(cc.letter))
+      num.assign(peg.plus(cc.digit))
+
+      var ctx = context.from("a(1)(2).b(3).c")
+      window.result = ctx.result
+      var ret = chk(`ret = sel.match(${ctx})`, sel.match(ctx)).isValid()
+      chk("ret.peekResult()", ret.peekResult().display({showILevel:true})).isValid()
+    })
+
+  }
+
+
   return test.asTest({
     testRuleDisplay: testRuleDisplay,
     testSimpleMatch: testSimpleMatch,
     testSubRuleMatch: testSubRuleMatch,
     testDirectLeftRecursion: testDirectLeftRecursion,
     testIndirectLeftRecursion: testIndirectLeftRecursion,
-    testIndirectLeftRecursionSubRules: testIndirectLeftRecursionSubRules
+    testIndirectLeftRecursionSubRules: testIndirectLeftRecursionSubRules,
+    testMutualLeftRecursion: testMutualLeftRecursion
   })
 
 })
